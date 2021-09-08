@@ -1,6 +1,6 @@
 ## Bonus 5 : Admin du Forum, autre methode
 
-Sur la page https://192.168.0.30/phpmyadmin/ ?
+Sur la page https://192.168.0.30/phpmyadmin/ 
 
 Allons sur la  base de données : forum_db
 
