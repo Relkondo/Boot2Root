@@ -10,6 +10,7 @@ Linux BornToSecHackMe 3.2.0-91-generic-pae #129-Ubuntu SMP Wed Sep 9 11:27:47 UT
 Looking on https://www.exploit-db.com/ and elsewhere, we find a famous vulnerability for this version of Linux : Dirty COW (Copy-On-Write)
 
 How Dirty COW Works
+
 First, we create a private copy (mapping) of a read-only file. Second, we write to the private copy. Since it's our first time writing to the private copy, the COW feature takes place. The problem lies in the fact that this write consists of two non-atomic actions:
 
 -locate physical address
