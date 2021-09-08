@@ -20,7 +20,7 @@ First, we create a private copy (mapping) of a read-only file. Second, we write 
 
 This means we can get right in the middle (via another thread) and tell the kernel to throw away our private copy — using madvise. This throwing away of the private copy results in the kernel accidentally writing to the original read-only file.
 
-How ? Well there’s a lazy “trick” used by the kernel when it creates the copy. The way the kernel acts (when you attempt write through out-of-band memory access such as through proc/self/mem when we request to write is the following :
+How ? Well there’s a lazy “trick” used by the kernel when it creates the copy. The way the kernel acts (when you attempt to write through out-of-band memory access such as proc/self/mem) is the following :
 1. Try to access the address of the original file
 2. Get denied because of the flags (indicating a non-authorized attempt to write)
 3. Since the access originally happenned (on the virtual memory) on a mapping (thanks flags), request don’t get simply denied : the kernel creates a copy.
