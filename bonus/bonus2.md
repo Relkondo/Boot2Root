@@ -48,3 +48,8 @@ adduser zaz
 
 We have zaz. We can enter zaz and execute a DirtyCow or Return2Libc attack.
 
+Note : if needed install the packages like so :
+```bash
+python3 -m pip install [package]
+```
+
