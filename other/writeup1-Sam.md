@@ -1,4 +1,4 @@
-## I - Find the port
+## I - Find the IP
 
 ````bash
 $>ifconfig
@@ -46,7 +46,7 @@ Nmap done: 256 IP addresses (3 hosts up) scanned in 65.27 seconds
 ````
 
 
-=> The port is 192.168.1.58
+=> The IP is 192.168.1.58
 
 
 
