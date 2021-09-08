@@ -11,8 +11,10 @@ Looking on https://www.exploit-db.com/ and elsewhere, we find a famous vulnerabi
 
 How Dirty COW Works
 First, we create a private copy (mapping) of a read-only file. Second, we write to the private copy. Since it's our first time writing to the private copy, the COW feature takes place. The problem lies in the fact that this write consists of two non-atomic actions:
-locate physical address
-write to physical address
+
+-locate physical address
+
+-write to physical address
 
 This means we can get right in the middle (via another thread) and tell the kernel to throw away our private copy — using madvise. This throwing away of the private copy results in the kernel accidentally writing to the original read-only file.
 
