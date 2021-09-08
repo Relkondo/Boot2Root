@@ -59,15 +59,12 @@ mmap: b7fda000
 madvise 0
 
 ptrace 0
-````
 
 Done! Check /etc/passwd to see if the new user was created.
 You can log in with the username 'firefart' and the password 'dirtywin'.
 
 
-DON'T FORGET TO RESTORE! 
-````bash
-$ mv /tmp/passwd.bak /etc/passwd
+DON'T FORGET TO RESTORE! $ mv /tmp/passwd.bak /etc/passwd
 ````
 
 ````bash
