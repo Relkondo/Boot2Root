@@ -23,7 +23,7 @@ This means we can get right in the middle (via another thread) and tell the kern
 How ? Well there’s a lazy “trick” used by the kernel when it creates the copy. The way the kernel acts (when you attempt to write through out-of-band memory access such as proc/self/mem) is the following :
 1. Try to access the address of the original file
 2. Get denied because of the flags (indicating a non-authorized attempt to write)
-3. Since the access originally happenned (on the virtual memory) on a mapping (thanks flags), request don’t get simply denied : the kernel creates a copy.
+3. Since the access originally happened (on the virtual memory) on a mapping (thanks flags), request don’t get simply denied : the kernel creates a copy.
 4. When copying, the kernel also copy the rights, meaning the user can’t write in it… And some lazy developer, instead of adding a flag, found it simpler to drop the flag indicating an attempt to write and repeat the code at 1., but with the address of the copy rather than the original file.
 5. Since the flags don’t indicate anymore a request to WRITE but actually a request to READ, it gets authorized.
 
