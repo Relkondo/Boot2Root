@@ -1,4 +1,4 @@
-## Second Way : Dirty Cow Exploit
+# Second Way : Dirty Cow Exploit
 
 Starting on zaz :
 
@@ -9,7 +9,8 @@ Linux BornToSecHackMe 3.2.0-91-generic-pae #129-Ubuntu SMP Wed Sep 9 11:27:47 UT
 
 Looking on https://www.exploit-db.com/ and elsewhere, we find a famous vulnerability for this version of Linux : Dirty COW (Copy-On-Write)
 
-How Dirty COW Works
+
+### How Dirty COW Works
 
 First, we create a private copy (mapping) of a read-only file. Second, we write to the private copy. Since it's our first time writing to the private copy, the COW feature takes place. The problem lies in the fact that this write consists of two non-atomic actions:
 
@@ -32,7 +33,8 @@ See
 https://www.cs.toronto.edu/~arnold/427/18s/427_18S/indepth/dirty-cow/index.html
 And the pdf file
 
-Let’s get to work : 
+
+### Let’s get to work : 
 
 We download dirty.c here :
 https://www.exploit-db.com/exploits/40839
