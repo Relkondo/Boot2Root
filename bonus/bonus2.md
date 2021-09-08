@@ -1,4 +1,4 @@
-Bonus 2 - Manipulating the ISO
+## Bonus 2 - Manipulating the ISO
 
 We can extract the filesystem from the iso.
 
