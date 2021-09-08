@@ -1,4 +1,4 @@
-Bonus 1 - By booting
+## Bonus 1 - By booting
 
 Reboot the VM, click on the screen and hold SHIFT.
 
